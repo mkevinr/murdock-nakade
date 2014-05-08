@@ -4,13 +4,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../bot1.cpp 
+../pfagent.cpp 
 
 OBJS += \
-./bot1.o 
+./pfagent.o 
 
 CPP_DEPS += \
-./bot1.d 
+./pfagent.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

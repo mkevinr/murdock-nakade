@@ -871,5 +871,6 @@ void robot_pre_update();
 void robot_update();
 void robot_post_update();
 void dumb_agent(BZRC MyTeam);
+void pf_agent(BZRC MyTeam);
 
 #endif /* BOT1_H_ */
