@@ -79,10 +79,8 @@ void pf_agent(BZRC MyTeam)
 		MyTeam.get_mytanks(&tanks);
 		tank_t agent = tanks[0];
 		flag_t destination = flags[1];
-		double distToGoal[] = {destination.pos[0] - agent.pos[0]
-				, destination.pos[1] - agent.pos[1]};
-		double dist = sqrt((distToGoal[0]*distToGoal[0] + distToGoal[1] * distToGoal[1]));
-		double theta = atan2(distToGoal[1], distToGoal[0]);
+		double dist = get_distance(destination.pos,agent.pos);
+		double theta = get_angle(destination.pos,agent.pos);
 		double angVelConst = 1;
 		MyTeam.angvel(0, angVelConst * (theta - agent.angle));
 		double alpha = 1;
@@ -146,3 +144,15 @@ void pf_agent(BZRC MyTeam)
 
 }
 
+double get_distance(double x[2], double y[2])
+{
+	double distToTank[] = {x[0] - y[0], x[1] - y[1]};
+	double dist = sqrt((distToTank[0]*distToTank[0] + distToTank[1] * distToTank[1]));
+	return dist;
+}
+double get_angle(double x[2], double y[2])
+{
+	double distToTank[] = {x[0] - y[0], x[1] - y[1]};
+	double theta = atan2(distToTank[1], distToTank[0]);
+	return theta;
+}

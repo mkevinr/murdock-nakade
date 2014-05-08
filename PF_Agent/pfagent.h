@@ -872,5 +872,7 @@ void robot_update();
 void robot_post_update();
 void dumb_agent(BZRC MyTeam);
 void pf_agent(BZRC MyTeam);
+double get_distance(double x[2], double y[2]);
+double get_angle(double x[2], double y[2]);
 
 #endif /* BOT1_H_ */
