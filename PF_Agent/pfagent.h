@@ -18,6 +18,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <unistd.h>
 #endif
 
 #include <stdio.h>
@@ -26,8 +27,10 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
-#include "math.h"
-#include <unistd.h>
+#include <math.h>
+
+#include "vec2.h"
+
 using namespace std;
 
 const int MAX_OBSTACLE_CORNERS = 10;
@@ -872,7 +875,10 @@ void robot_update();
 void robot_post_update();
 void dumb_agent(BZRC MyTeam);
 void pf_agent(BZRC MyTeam);
-double get_distance(double x[2], double y[2]);
-double get_angle(double x[2], double y[2]);
+double get_distance(Vec2, Vec2);
+double get_distance_squared(Vec2, Vec2);
+flag_t get_flag(vector<flag_t>, string);
+double get_angle(Vec2, Vec2);
+Vec2 get_nearest_point(Vec2, Vec2, Vec2);
 
 #endif /* BOT1_H_ */
