@@ -9,6 +9,9 @@
 #define GRID_VIEW_H_
 
 #include <GL/glut.h>
+#include <iostream>
+
+using namespace std;
 
 // These were not put in a class so that draw_grid can be passed to glutDisplayFunc easily
 const int grid_width = 640;
@@ -17,6 +20,7 @@ GLfloat grid[grid_height][grid_width];
 
 void draw_grid()
 {
+	cout << "grid[2][2]: " << grid[2][2] << endl;
     glRasterPos2f(-1, -1);
     glDrawPixels(grid_width, grid_height, GL_LUMINANCE, GL_FLOAT, grid);
     glFlush();
