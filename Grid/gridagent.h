@@ -874,7 +874,7 @@ void robot_pre_update();
 void robot_update();
 void robot_post_update();
 void dumb_agent(BZRC MyTeam);
-void pf_agent(BZRC MyTeam);
+void grid_agent(BZRC MyTeam, int * argc, char ** argv);
 double get_distance(Vec2, Vec2);
 double get_distance_squared(Vec2, Vec2);
 flag_t get_flag(vector<flag_t>, string);

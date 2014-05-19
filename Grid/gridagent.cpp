@@ -11,14 +11,17 @@
 #include <math.h>
 #include <limits>
 #include <string.h>
+#include <vector>
+
 #include "gridagent.h"
+#include "grid_view.h"
 
 using namespace std;
 
 const double pi = 3.141592653589779;
 
 const char *kDefaultServerName = "localhost";
-const int kDefaultServerPort = 60000;
+const int kDefaultServerPort = 34937;
 
 void get_nearest_point(double[2], double[2], double[2], double[2]);
 
@@ -47,7 +50,7 @@ int main(int argc, char *argv[]) {
 
 	// Calling agent code
 	world_init(&MyTeam);
-	pf_agent(MyTeam);
+	grid_agent(MyTeam, &argc, argv);
 	MyTeam.Close();
 	//free(&MyTeam);
 	return 0;
@@ -101,8 +104,18 @@ double normalize_angle(double angle)
 	return angle;
 }
 
-void pf_agent(BZRC MyTeam)
+void grid_agent(BZRC MyTeam, int * argc, char ** argv)
 {
+	init_grid();
+	GLfloat test_grid[480][640];
+	for(int i = 0; i < 480; i++)
+	{
+		for(int j = 0; j < 640; j++)
+		{
+			grid[i][j] = 0.5;
+		}
+	}
+	init_window(argc, argv);
 	vector<obstacle_t> obstacles;
 	MyTeam.get_obstacles(&obstacles);
 
@@ -120,129 +133,6 @@ void pf_agent(BZRC MyTeam)
 	double repulsiveRadius = 20;
 	double angleToFlag = 0;
 	Vec2 coordinate;
-	bool plot = true;
-	if(plot)
-	{
-		Plotter plotter("flag_attractor_fields.png");
-		plotter.plotObstacles(obstacles);
-		for(int i = -400; i < 400; i += step)
-		{
-			for(int j = -400; j < 400; j += step)
-			{
-				coordinate = Vec2((double)i, (double)j);
-				dist = get_distance(destination_pos, coordinate);
-				angleToFlag = get_angle(destination_pos, coordinate);
-				angleToFlag = normalize_angle(angleToFlag);
-				speed = alpha * dist;
-				plotter.plotField(i, j, angleToFlag, speed * .03);
-			}
-		}
-
-		plotter.end();
-
-		plotter.reset("obstacle_repulsive_fields.png");
-		plotter.plotObstacles(obstacles);
-		Vec2 near;
-		Vec2 nearest;
-		double nearestDist;
-		obstacle_t obstacle;
-		for(int i = -400; i < 400; i += step)
-		{
-			for(int j = -400; j < 400; j += step)
-			{
-				coordinate = Vec2(i, j);
-				nearestDist = numeric_limits<double>::max();
-				for(int k = 0; k < obstacles.size(); k++)
-				{
-					obstacle = obstacles[k];
-					for(int l = 0; l < obstacle.courner_count; l++)
-					{
-						//get_obstacle_center(obstacle, near);
-						near = get_nearest_point(obstacle.o_corner[l]
-							, obstacle.o_corner[(l + 1) % obstacle.courner_count], coordinate);
-						dist = get_distance(coordinate, near);
-						if(dist < nearestDist)
-						{
-							nearestDist = dist;
-							nearest = Vec2(near);
-						}
-					}
-				}
-				if(nearestDist < repulsiveRadius)
-				{
-					double theta = normalize_angle(get_angle(coordinate, nearest));
-					double speed = beta * 2 * (repulsiveRadius - nearestDist);
-					plotter.plotField(i, j, theta, speed);
-				}
-			}
-		}
-
-		plotter.end();
-
-		plotter.reset("obstacle_tangential_fields.png");
-		plotter.plotObstacles(obstacles);
-		double nearestNearestDist = numeric_limits<double>::max();
-		for(int i = -400; i < 400; i += step)
-		{
-			for(int j = -400; j < 400; j += step)
-			{
-				coordinate = Vec2(i, j);
-				nearestDist = numeric_limits<double>::max();
-				//cout << "coordinate: i: " << i << " j: " << j << endl;
-				for(int k = 0; k < obstacles.size(); k++)
-				{
-					obstacle = obstacles[k];
-					for(int l = 0; l < obstacle.courner_count; l++)
-					{
-						//cout << "gets in l loop" << endl;
-						//get_obstacle_center(obstacle, near);
-						near = get_nearest_point(obstacle.o_corner[l]
-							, obstacle.o_corner[(l + 1) % obstacle.courner_count], coordinate);
-						/*cout << "Nearest Point: ";
-						near.print();
-						cout << endl;*/
-						//cout << "dist: " << dist << endl;
-						dist = get_distance(coordinate, near);
-						if(dist < nearestDist)
-						{
-							nearestDist = dist;
-							/*cout << "Nearest! ";
-							nearest.print();
-							cout << " Obstacle: " << k << endl;*/
-							nearest = Vec2(near);
-						}
-						if(dist < nearestNearestDist)
-						{
-							nearestNearestDist = dist;
-						}
-					}
-				}
-				//cout << "nearestDist: " << nearestDist << " nearestNearestDist: " << nearestNearestDist << endl;
-				//cout << "repulsiveRadius: " << repulsiveRadius << endl;
-				if(nearestDist < repulsiveRadius)
-				{
-					double theta = normalize_angle(get_angle(coordinate, nearest));
-					theta += 90;
-					double speed = -beta * (repulsiveRadius - nearestDist);
-					plotter.plotField(i, j, theta, speed);
-				}
-			}
-		}
-
-		plotter.end();
-
-		plotter.reset("all_fields.png");
-		plotter.plotObstacles(obstacles);
-		for(int i = -400; i < 400; i += step)
-		{
-			for(int j = -400; j < 400; j += step)
-			{
-
-			}
-		}
-
-		plotter.end();
-	}
 
 	bool flag_captured = false;
 	string oppose_color = "red";
@@ -250,6 +140,8 @@ void pf_agent(BZRC MyTeam)
 	vector<tank_t> tanks;
 	while(!flag_captured)
 	{
+		update_grid(test_grid);
+		draw_grid();
 		MyTeam.shoot(0);
 		flags.clear();
 		tanks.clear();
