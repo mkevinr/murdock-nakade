@@ -106,7 +106,7 @@ double normalize_angle(double angle)
 
 void grid_agent(BZRC MyTeam, int * argc, char ** argv)
 {
-	init_grid();
+	init_grid();//
 	GLfloat test_grid[480][640];
 	for(int i = 0; i < 480; i++)
 	{
