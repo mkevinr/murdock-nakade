@@ -21,7 +21,13 @@ using namespace std;
 const double pi = 3.141592653589779;
 
 const char *kDefaultServerName = "localhost";
-const int kDefaultServerPort = 34937;
+const int kDefaultServerPort = 50103;
+
+float true_positive = 0.97;
+float true_negative = 0.9;
+
+float grid_probabilities[grid_height][grid_width];
+GLfloat grid[grid_height][grid_width];
 
 void get_nearest_point(double[2], double[2], double[2], double[2]);
 
@@ -104,171 +110,229 @@ double normalize_angle(double angle)
 	return angle;
 }
 
+void init_grid()
+{
+	for(int i = 0; i < grid_height; i++)
+	{
+		for(int j = 0; j < grid_width; j++)
+		{
+			grid[i][j] = .5;
+			grid_probabilities[i][j] = .5;
+		}
+	}
+}
+
 void grid_agent(BZRC MyTeam, int * argc, char ** argv)
 {
-	init_grid();
-	GLfloat test_grid[480][640];
-	for(int i = 0; i < 480; i++)
-	{
-		for(int j = 0; j < 640; j++)
-		{
-			test_grid[i][j] = 0.5;
-		}
-	}
 	init_window(argc, argv);
-	vector<obstacle_t> obstacles;
-	MyTeam.get_obstacles(&obstacles);
+	init_grid();
+	update_grid(grid);
 
-	vector<flag_t> flags;
-	MyTeam.get_flags(&flags);
-	flag_t destination = get_flag(flags, "red");
-	cout << "destination flag color: " << destination.color << endl;
-	Vec2 destination_pos = Vec2(destination.pos);
-	double alpha = 1;
-	double beta = 1;
-
-	int step = 40;
-	double dist = 0;
-	double speed = 0;
 	double repulsiveRadius = 20;
-	double angleToFlag = 0;
 	Vec2 coordinate;
 
-	bool flag_captured = false;
-	string oppose_color = "red";
-	string my_color = "green";
+	string my_color = "blue";
+	vector<flag_t> flags;
+	MyTeam.get_flags(&flags);
+	flag_t my_flag = get_flag(flags, "blue");
+	Vec2 my_flag_pos(my_flag.pos);
 	vector<tank_t> tanks;
-	while(!flag_captured)
+	MyTeam.get_mytanks(&tanks);
+	int num_tanks = 2;
+	if(tanks.size() < 2)
 	{
-		update_grid(test_grid);
-		draw_grid();
-		MyTeam.shoot(0);
-		flags.clear();
+		num_tanks = tanks.size();
+	}
+	tanks.clear();
+	Vec2 destination[num_tanks];
+	bool first_destination[num_tanks];
+	for(int i = 0; i < num_tanks; i++)
+	{
+		first_destination[i] = true;
+	}
+	int y_step = 75;
+	int offset = y_step / 3;
+	for(int i = 0; i < num_tanks; i++)
+	{
+		destination[i] = Vec2(-grid_width / 2 + offset, grid_height / 2 - offset - i * 75);
+	}
+	int max_row_y_visited = destination[num_tanks - 1].y;
+	vector<grid_t> occ_grid;
+	float p_s;
+	float p_o_s = true_positive;
+	float p_o_ns = 1 - true_negative;
+	float p_no_s = 1 - true_positive;
+	float p_no_ns = true_negative;
+	float probability;
+	int my_grid_x;
+	int my_grid_y;
+	grid_t grid_item;
+	int occ_grid_size;
+	while(true)
+	{
 		tanks.clear();
-		MyTeam.get_flags(&flags);
 		MyTeam.get_mytanks(&tanks);
-		tank_t agent = tanks[0];
-		// If the current tank has a flag
-		if(agent.flag.length() > 2)
+		for(int l = 0; l < num_tanks; l++)
 		{
-			destination = get_flag(flags, my_color);
-		}
-		else
-		{
-			destination = get_flag(flags, oppose_color);
-		}
-		destination_pos = Vec2(destination.pos);
-		// Go Towards Flag (Attractive field - Seek Goal)
-		double dist = get_distance(destination.pos,agent.pos);
-		double attractiveAngle = normalize_angle(get_angle(agent.pos, destination.pos) - agent.angle);
-		double attractiveSpeed = dist;
-		double angVelConst = 1;
-
-		//MyTeam.speed(0,attractiveSpeed);
-		//MyTeam.angvel(0,attractiveAngle);
-
-		// Avoid obstacles
-		Vec2 near;
-		Vec2 nearest;
-		double nearestDist = numeric_limits<double>::max();;
-		obstacle_t obstacle;
-		for(int k = 0; k < obstacles.size(); k++)
-		{
-			obstacle = obstacles[k];
-			/*get_obstacle_center(obstacle, near);
-			if(dist < nearestDist)
+			occ_grid.clear();
+			MyTeam.get_occgrid(&occ_grid, l);
+			grid_item = occ_grid[0];
+			occ_grid_size = grid_item.xdim * grid_item.ydim;
+			for(int i = 0; i < occ_grid_size; i++)
 			{
-				nearestDist = dist;
-				nearest[0] = near[0];
-				nearest[1] = near[1];
-			}*/
-			for(int l = 0; l < obstacle.courner_count; l++)
-			{
-				near = get_nearest_point(Vec2(obstacle.o_corner[l])
-					, Vec2(obstacle.o_corner[(l + 1) % obstacle.courner_count]), Vec2(agent.pos));
-				dist = get_distance(Vec2(agent.pos), near);
-				if(dist < nearestDist)
+				my_grid_y = grid_item.y + i / grid_item.xdim + grid_height / 2;
+				my_grid_x = grid_item.x + i % grid_item.xdim + grid_width / 2;
+				p_s = grid_probabilities[my_grid_y][my_grid_x];
+				if(grid_item.grid[i])
 				{
-					nearestDist = dist;
-					nearest = Vec2(near);
+					grid_probabilities[my_grid_y][my_grid_x] = p_o_s * p_s / (p_o_s * p_s + p_o_ns * (1 - p_s));
+				}
+				else
+				{
+					//grid_probabilities[grid_item.y][grid_item.x] = p_no_s * p_s / (p_no_s * p_s + p_no_s * p_s);
+					grid_probabilities[my_grid_y][my_grid_x] = p_no_s * p_s / (p_no_s * p_s + p_no_ns * (1 - p_s));
+				}
+
+				probability = grid_probabilities[my_grid_y][my_grid_x];
+
+				if(probability >= .9)
+				{
+					grid[my_grid_y][my_grid_x] = 1;
+				}
+				else if(probability <= .1)
+				{
+					grid[my_grid_y][my_grid_x] = 0;
+				}
+				else
+				{
+					grid[my_grid_y][my_grid_x] = .5;
 				}
 			}
-		}
+			MyTeam.shoot(l);
+			tank_t agent = tanks[l];
 
-		double repulsiveAngle = 0;
-		double tangentialAngle = 0;
-
-		if(nearestDist < repulsiveRadius)
-		{
-			repulsiveAngle = normalize_angle(get_angle(agent.pos, nearest));
-			tangentialAngle = normalize_angle(get_angle(agent.pos, nearest) + pi / 2);
-		}
-
-		attractiveAngle = normalize_angle(attractiveAngle);
-		//cout << "attractive angle: " << attractiveAngle << endl;
-		repulsiveAngle = normalize_angle(repulsiveAngle);
-		//MyTeam.angvel(0, attractiveAngle + (repulsiveAngle - agent.angle));
-		//MyTeam.speed(0, attractiveSpeed - beta * repulsiveSpeed);
-		MyTeam.angvel(0, normalize_angle(attractiveAngle + repulsiveAngle));
-		MyTeam.speed(0, attractiveSpeed);
-		//MyTeam.speed(0, attractiveSpeed - beta * repulsiveSpeed);
-
-
-
-		// Avoid Other Tanks
-		/*vector <otank_t> other_tanks;
-		MyTeam.get_othertanks(&other_tanks);
-		for(int i = 0; i<other_tanks.size() ; i++)
-		{
-			double distToTank[] = {other_tanks[i].pos[0] - agent.pos[0]
-					, other_tanks[i].pos[1] - agent.pos[1]};
-			double dist = sqrt((distToTank[0]*distToTank[0] + distToTank[1] * distToTank[1]));
-			double theta = atan2(distToTank[1], distToTank[0]);
-			if(dist < 10)
+			//TODO reached_destinationn to not always be false.
+			bool reached_destination = get_distance(Vec2(agent.pos), destination[l]) < 10;
+			if(reached_destination)
 			{
-				double angVelConst = -0.1;
-				MyTeam.angvel(0, angVelConst * (theta - agent.angle));
-				double alpha = -0.01;
-				MyTeam.shoot(0);
-				MyTeam.speed(0, alpha * dist);
+				if(first_destination[l])
+				{
+					destination[l] = Vec2(grid_width / 2 - offset, destination[l].y);
+				}
+				else if(max_row_y_visited > -grid_height / 2 + y_step)
+				{
+					max_row_y_visited = max_row_y_visited - y_step;
+					if(destination[l].x > 0)
+					{
+						destination[l] = Vec2(-grid_width / 2 + offset, max_row_y_visited);
+					}
+					else
+					{
+						destination[l] = Vec2(grid_width / 2 - offset, max_row_y_visited);
+					}
+				}
+				else if(max_row_y_visited > -grid_height / 2 + offset)
+				{
+					max_row_y_visited = -grid_height / 2 + offset;
+					if(destination[l].x > 0)
+					{
+						destination[l] = Vec2(-grid_width / 2 + offset, max_row_y_visited);
+					}
+					else
+					{
+						destination[l] = Vec2(grid_width / 2 - offset, max_row_y_visited);
+					}
+				}
+				else
+				{
+					destination[l] = my_flag_pos;
+				}
+				first_destination[l] = false;
 			}
 
-		}
+			// Go Towards Flag (Attractive field - Seek Goal)
+			double dist = get_distance(destination[l],Vec2(agent.pos));
+			double attractiveAngle = normalize_angle(get_angle(Vec2(agent.pos), destination[l]) - agent.angle);
+			double attractiveSpeed = dist;
 
-		// Avoid your own Tanks
-		for(int i = 1; i<tanks.size() ; i++)
-		{
-			double distToTank[] = {tanks[i].pos[0] - agent.pos[0]
-					, tanks[i].pos[1] - agent.pos[1]};
-			double dist = sqrt((distToTank[0]*distToTank[0] + distToTank[1] * distToTank[1]));
-			double theta = atan2(distToTank[1], distToTank[0]);
-			if(dist < 10)
+			//TODO figure out how to avoid obstacles with the new system.
+			// Avoid obstacles
+			/*Vec2 near;
+			Vec2 nearest;
+			double nearestDist = numeric_limits<double>::max();;
+			obstacle_t obstacle;
+			for(int k = 0; k < obstacles.size(); k++)
 			{
-				double angVelConst = -0.1;
-				MyTeam.angvel(0, angVelConst * (theta - agent.angle) );
-				double alpha = -0.1;
-				MyTeam.shoot(0);
-				MyTeam.speed(0, alpha * dist);
+				for(int l = 0; l < obstacle.courner_count; l++)
+				{
+					near = get_nearest_point(Vec2(obstacle.o_corner[l])
+						, Vec2(obstacle.o_corner[(l + 1) % obstacle.courner_count]), Vec2(agent.pos));
+					dist = get_distance(Vec2(agent.pos), near);
+					if(dist < nearestDist)
+					{
+						nearestDist = dist;
+						nearest = Vec2(near);
+					}
+				}
 			}
-		}*/
 
-		//Check if flag is captured
-		if(destination.poss_color.compare("blue") == 0)
-		{
-			flag_captured = true;
+			double repulsiveAngle = 0;
+			double tangentialAngle = 0;
 
+			if(nearestDist < repulsiveRadius)
+			{
+				repulsiveAngle = normalize_angle(get_angle(agent.pos, nearest));
+				tangentialAngle = normalize_angle(get_angle(agent.pos, nearest) + pi / 2);
+			}*/
+
+			attractiveAngle = normalize_angle(attractiveAngle);
+			double repulsiveAngle = 0;
+			repulsiveAngle = normalize_angle(repulsiveAngle);
+			MyTeam.angvel(l, normalize_angle(attractiveAngle + repulsiveAngle));
+			MyTeam.speed(l, attractiveSpeed);
+
+			// Avoid Other Tanks
+			/*vector <otank_t> other_tanks;
+			MyTeam.get_othertanks(&other_tanks);
+			for(int i = 0; i<other_tanks.size() ; i++)
+			{
+				double distToTank[] = {other_tanks[i].pos[0] - agent.pos[0]
+						, other_tanks[i].pos[1] - agent.pos[1]};
+				double dist = sqrt((distToTank[0]*distToTank[0] + distToTank[1] * distToTank[1]));
+				double theta = atan2(distToTank[1], distToTank[0]);
+				if(dist < 10)
+				{
+					double angVelConst = -0.1;
+					MyTeam.angvel(0, angVelConst * (theta - agent.angle));
+					double alpha = -0.01;
+					MyTeam.shoot(0);
+					MyTeam.speed(0, alpha * dist);
+				}
+
+			}
+
+			// Avoid your own Tanks
+			for(int i = 1; i<tanks.size() ; i++)
+			{
+				double distToTank[] = {tanks[i].pos[0] - agent.pos[0]
+						, tanks[i].pos[1] - agent.pos[1]};
+				double dist = sqrt((distToTank[0]*distToTank[0] + distToTank[1] * distToTank[1]));
+				double theta = atan2(distToTank[1], distToTank[0]);
+				if(dist < 10)
+				{
+					double angVelConst = -0.1;
+					MyTeam.angvel(0, angVelConst * (theta - agent.angle) );
+					double alpha = -0.1;
+					MyTeam.shoot(0);
+					MyTeam.speed(0, alpha * dist);
+				}
+			}*/
 		}
+
+		update_grid(grid);
+		draw_grid();
 	}
 	printf("Captured the flag\n");
-	//Come back to base after getting the flag
-	/*
-	bool at_base = false;
-	while(!at_base)
-	{
-
-	}
-	*/
-
 }
 
 flag_t get_flag(vector<flag_t> flags, string color)
