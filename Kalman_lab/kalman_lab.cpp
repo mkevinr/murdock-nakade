@@ -6,6 +6,7 @@
  */
 
 #include "kalman_lab.h"
+#include "plot.h"
 
 using namespace std;
 
@@ -60,10 +61,11 @@ void non_conforming_agent(BZRC MyTeam)
 	int random_speed, random_angvel;
 	while(true)
 	{
-		random_speed = (rand() % 100 ) / 100;
-		random_angvel = (rand() % 100 ) / 100;
+		random_speed = (rand() % 250 ) / 10;
+		random_angvel = (rand() % 250 ) / 10;
 		MyTeam.speed(1, random_speed);
 		MyTeam.angvel(1, random_angvel);
+		sleep(2);
 	}
 
 }
