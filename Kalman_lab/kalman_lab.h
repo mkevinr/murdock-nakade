@@ -27,6 +27,7 @@
 #include <iostream>
 #include <vector>
 #include "math.h"
+#include "vec2.h"
 #include <unistd.h>
 using namespace std;
 
@@ -867,7 +868,7 @@ public:
 // Prototypes
 double normalize_angle(double angle);
 void dumb_agent(BZRC MyTeam);
-double get_distance(double x[2], double y[2]);
+double get_distance(Vec2, Vec2);
 double get_angle(double x[2], double y[2]);
 void get_obstacle_center(obstacle_t obstacle, double center[2]);
 
