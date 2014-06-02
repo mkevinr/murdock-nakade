@@ -1,6 +1,9 @@
 #!/bin/bash
 RUN_SERVER=true
 RUN_CLIENT=true
+STATIONARY=false;
+CONSTANT=false;
+WILD=false;
 
 for var in "$@"
 do
@@ -10,6 +13,15 @@ do
 	elif [ "$var" = "noclient" ] || [ "$var" = "-noclient" ] || [ "$var" = "no_client" ] || [ "$var" = "--noclient" ] || [ "$var" = "-no_client" ] || [ "$var" = "--no_client" ]
 	then
 		RUN_CLIENT=false
+	elif [ "$var" = "stationary" ] || [ "$var" = "-stationary" ] || [ "$var" = "--stationary" ]
+	then
+		STATIONARY=true;
+	elif [ "$var" = "constant" ] || [ "$var" = "-constant" ] || [ "$var" = "--constant" ]
+	then
+		CONSTANT=true;
+	elif [ "$var" = "wild" ] || [ "$var" = "-wild" ] || [ "$var" = "--wild" ]
+	then
+		WILD=true;
 	fi
 done
 
@@ -18,12 +30,26 @@ KALMAN_DIR=~/git/bzrflag/Kalman
 
 if [ "$RUN_SERVER" = true ];
 then
-	$SERVER_DIR/bin/bzrflag --world=$SERVER_DIR/maps/empty3.bzw  --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 --default-posnoise=5 &
+	$SERVER_DIR/bin/bzrflag --world=empty3.bzw  --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 --default-posnoise=5 &
 fi;
 
 sleep 2
 
 if [ "$RUN_CLIENT" = true ];
 then
-	$KALMAN_DIR/Debug/Kalman &
+	if [ "$STATIONARY" = true ]
+	then
+		$KALMAN_DIR/Debug/Kalman localhost 50100 kalman &
+		echo stationary &
+	elif [ "$CONSTANT" = true ]
+	then
+		$KALMAN_DIR/Debug/Kalman localhost 50100 kalman &
+		$KALMAN_DIR/Debug/Kalman localhost 50101 constant &
+		echo constant &
+	elif [ "$WILD" = true ]
+	then
+		$KALMAN_DIR/Debug/Kalman localhost 50100 kalman &
+		$KALMAN_DIR/Debug/Kalman localhost 50101 wild &
+		echo wild &
+	fi		
 fi
