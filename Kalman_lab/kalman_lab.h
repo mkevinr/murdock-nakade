@@ -147,11 +147,12 @@ public:
 class BZRC {
 	const char *pcHost;
 	int nPort;
-	bool debug;
+	bool debug = false;
 	bool InitStatus;
 	char ReplyBuffer[kBufferSize];
 	int LineFeedPos;
 	int Start;
+	bool connection_closed = false;
 
 #ifdef WINDOWS
 	SOCKET sd;
@@ -298,6 +299,7 @@ class BZRC {
 		}
 		else if (nNewBytes == 0) {
 			cerr << "Connection closed by peer." << endl;
+			connection_closed = true;
 			return 0;
 		}
 
@@ -310,13 +312,19 @@ class BZRC {
 	}
 
 	// Only read one line of text from ReplyBuffer
+	// I altered this to return early if the connection closed.
 	void ReadLine(char *LineText) {
+		int read_reply_response;
 		memset(LineText, '\0', kBufferSize);
 		// Only read more from server when done wiht current ReplyBuffer
 		if(strlen(ReplyBuffer)==0) {
 			char *Reply;
 			Reply = ReplyBuffer;
-			ReadReply(Reply);
+			read_reply_response = ReadReply(Reply);
+			if(connection_closed)
+			{
+				return;
+			}
 		}
 		int i=0;
 		bool done=false;
@@ -336,7 +344,11 @@ class BZRC {
 					ResetReplyBuffer();
 					char *Reply;
 					Reply = ReplyBuffer;
-					ReadReply(Reply);
+					read_reply_response = ReadReply(Reply);
+					if(connection_closed)
+					{
+						return;
+					}
 			}
 			else {
 				if(ReplyBuffer[i]=='\0') {
@@ -379,11 +391,25 @@ class BZRC {
 		char str[kBufferSize];
 		char *LineText=str;
 		ReadLine(LineText);
+		if(connection_closed)
+		{
+			vector<string> return_array;
+			return_array.push_back("fail");
+			return return_array;
+		}
+
 		if(strlen(LineText)!=0) {
 			if(debug) cout << LineText << endl;
 		}
 		while(strlen(LineText)==0) {
 			ReadLine(LineText);
+			if(connection_closed)
+			{
+				vector<string> return_array;
+				return_array.push_back("fail");
+				return return_array;
+			}
+
 			if(debug) cout << LineText << endl;
 		}
 		SplitString ss=SplitString(LineText);
@@ -531,6 +557,11 @@ public:
 		else {
 			return false;
 		}
+	}
+
+	bool get_connection_closed()
+	{
+		return connection_closed;
 	}
 
         // Chris added this method to get the occgrid for a tank

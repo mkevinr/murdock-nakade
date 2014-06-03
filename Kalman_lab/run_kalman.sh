@@ -26,11 +26,11 @@ do
 done
 
 SERVER_DIR=~/git/bzrflag-server
-KALMAN_DIR=~/git/bzrflag/Kalman
+KALMAN_DIR=~/git/bzrflag/Kalman_lab
 
 if [ "$RUN_SERVER" = true ];
 then
-	$SERVER_DIR/bin/bzrflag --world=empty3.bzw  --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 --default-posnoise=5 &
+	$SERVER_DIR/bin/bzrflag --world=$KALMAN_DIR/empty3.bzw  --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 --default-posnoise=5 &
 fi;
 
 sleep 2
@@ -39,17 +39,14 @@ if [ "$RUN_CLIENT" = true ];
 then
 	if [ "$STATIONARY" = true ]
 	then
-		$KALMAN_DIR/Debug/Kalman localhost 50100 kalman &
-		echo stationary &
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman
 	elif [ "$CONSTANT" = true ]
 	then
-		$KALMAN_DIR/Debug/Kalman localhost 50100 kalman &
-		$KALMAN_DIR/Debug/Kalman localhost 50101 constant &
-		echo constant &
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50101 constant &
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman
 	elif [ "$WILD" = true ]
 	then
-		$KALMAN_DIR/Debug/Kalman localhost 50100 kalman &
-		$KALMAN_DIR/Debug/Kalman localhost 50101 wild &
-		echo wild &
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50101 wild &
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman
 	fi		
 fi

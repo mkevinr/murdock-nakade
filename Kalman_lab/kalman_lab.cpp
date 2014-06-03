@@ -23,6 +23,11 @@ double t = 0.5;
 int main(int argc, char *argv[])
 {
 
+	if(argc < 4)
+	{
+		cout << "Usage: <host> <port> [kalman | constant | wild]" << endl;
+	}
+
 	const char *pcHost;
 	int nPort;
 
@@ -39,17 +44,29 @@ int main(int argc, char *argv[])
 		nPort = atoi(argv[2]);
 	}
 
+
 	BZRC MyTeam = BZRC(pcHost, nPort, false);
 	if(!MyTeam.GetStatus()) {
 		cout << "Can't connect to BZRC server." << endl;
 		exit(1);
 	}
 
-	// Calling agent code
-	//conforming_agent(MyTeam);
-	//non_conforming_agent(MyTeam);
-
-	kalman_agent(MyTeam);
+	if(strcmp(argv[3], "kalman") == 0)
+	{
+		kalman_agent(MyTeam);
+	}
+	else if(strcmp(argv[3], "constant") == 0)
+	{
+		conforming_agent(MyTeam);
+	}
+	else if(strcmp(argv[3], "wild") == 0)
+	{
+		non_conforming_agent(MyTeam);
+	}
+	else
+	{
+		cout << "Usage: <host> <port> [kalman | constant | wild]" << endl;
+	}
 
 	MyTeam.Close();
 
@@ -58,13 +75,16 @@ int main(int argc, char *argv[])
 
 void conforming_agent(BZRC MyTeam)
 {
+	cout << "Starting conforming agent..." << endl;
 	MyTeam.speed(0, 1);
+
 }
 
 void non_conforming_agent(BZRC MyTeam)
 {
+	cout << "Starting non-conforming agent..." << endl;
 	int random_speed, random_angvel;
-	while(true)
+	while(!MyTeam.get_connection_closed())
 	{
 		random_speed = (rand() % 250 ) / 10;
 		random_angvel = (rand() % 250 ) / 10;
@@ -72,7 +92,7 @@ void non_conforming_agent(BZRC MyTeam)
 		MyTeam.angvel(1, random_angvel);
 		sleep(2);
 	}
-
+	cout << "Exiting..." << endl;
 }
 
 void init_matrices()
@@ -215,7 +235,8 @@ Vec2 predict_future(BZRC & MyTeam)
 	 // find the perfect t. It is just trying a lot of t values and choosing the best. The t values goes to the maximum
 	 // distance that a bullet can travel, which is 350 (or 3.5 t).
 	 //
-	for(float t = 0.5; t <= 3.5; t+=0.5)
+	cout << "changed!" << endl;
+	for(float t = 0.05; t <= 3.5; t+=0.05)
 	{
 		// F_future is based off of a different t each time, so it has to change.
 		update_F_future(t);
@@ -247,29 +268,60 @@ Vec2 predict_future(BZRC & MyTeam)
 void aim_at(BZRC& MyTeam, Vec2 pos)
 {
 	vector<tank_t> my_tanks;
+	double max_angular_velocity = 0.785398163397;
 	float attractive_angle = 1;
-	while(attractive_angle > 0.05 || attractive_angle<-0.05)
+	if(attractive_angle > 0.05 || attractive_angle<-0.05)
 	{
 		my_tanks.clear();
 		MyTeam.get_mytanks(&my_tanks);
 		tank_t my_tank = my_tanks[0];
+		// The constants have 2 values, angular velocity and angular acceleration. I am assuming the angular velocity is the max angular velocity.
 		attractive_angle = normalize_angle(get_angle(Vec2(my_tank.pos[0], my_tank.pos[1]), pos) - my_tank.angle);
 		MyTeam.angvel(0, attractive_angle);
+		//MyTeam.angvel(0, attractive_angle * max_angular_velocity/ pi);
 	}
-	MyTeam.angvel(0, 0);
+	else
+	{
+		MyTeam.angvel(0, 0);
+	}
+}
+
+void print_constants(BZRC& MyTeam)
+{
+	vector<constant_t> constants;
+
+	cout << "Constants:" << endl;
+	MyTeam.get_constants(&constants);
+	for(int i = 0; i < constants.size(); i++)
+	{
+		cout << "name: " << constants[i].name << " value: " << constants[i].value << endl;
+	}
 }
 
 void kalman_agent(BZRC MyTeam)
 {
+	cout << "Starting Kalman agent..." << endl;
 	init_matrices();
 	update_F(t);
 	Timer timer;
+	Timer timer2;
 	double duration;
+	double duration2;
 	vector<otank_t> other_tanks;
-	Plotter plotter("gaussian.png");
+
+	print_constants(MyTeam);
+
+	Plotter * plotter;
+	bool plot = false;
+	if(plot)
+	{
+		// Uncomment this line and comment out the next to save the distribution as a gif.
+		//plotter = new Plotter("gaussian.gif");
+		plotter = new Plotter;
+	}
 
 	Vec2 target;
-	while(true)
+	for(int i = 0; true; i++)
 	{
 		other_tanks.clear();
 		MyTeam.get_othertanks(&other_tanks);
@@ -277,13 +329,26 @@ void kalman_agent(BZRC MyTeam)
 		z(0,0) = other_tanks[0].pos[0];
 		z(1,0) = other_tanks[0].pos[1];
 
+		timer2.start();
 		apply_kalman();
-		plotter.plotMultivariateNormal(u(0,0), u(3,0), sigma_t(0,0), sigma_t(3,3), 0);
+		duration2 = timer2.stop();
+		cout << "\n\napply_kalman duration: " << duration2 << endl;
+		timer2.start();
+		if(plot)
+		{
+			plotter->plotMultivariateNormal(i / 100, i / 100, (float) 1000 / i, (float) 1000 / i, 0);
+			//plotter->plotMultivariateNormal(u(0,0), u(3,0), sigma_t(0,0), sigma_t(3,3), 0);
+		}
+		duration2 = timer2.stop();
+		cout << "plotting duration: " << duration2 << endl;
 
 		Vec2 current_pos = Vec2(u(0,0), u(3,0));
 		cout << "current x: " << current_pos.x << " y: " << current_pos.y << endl;
 		// Get the point we want to aim at giving enough time for the bullet to travel there.
+		timer2.start();
 		target = predict_future(MyTeam);
+		duration2 = timer2.stop();
+		cout << "predict_future duration: " << duration2 << endl;
 		cout << "target: x: " << target.x << " y: " << target.y << endl;
 		// Aim at the given point. predict_future assumes that our tank can turn faster than the enemy tank can move
 		// away from us.
@@ -293,14 +358,37 @@ void kalman_agent(BZRC MyTeam)
 		Vec2 my_pos(my_tanks[0].pos[0], my_tanks[0].pos[1]);
 
 		float dist = get_distance(my_pos, target);
+		timer2.start();
 		aim_at(MyTeam, target);
+		if(MyTeam.get_connection_closed())
+		{
+			if(plot)
+			{
+				plotter->end();
+			}
+			cout << "Exiting..." << endl;
+			exit(0);
+		}
+		duration2 = timer2.stop();
+		cout << "aim_at duration: " << duration2 << endl;
 
 		if(dist < 400)
-			MyTeam.shoot(0 );
+		{
+			MyTeam.shoot(0);
+			if(MyTeam.get_connection_closed())
+			{
+				if(plot)
+				{
+					plotter->end();
+				}
+				cout << "Exiting..." << endl;
+				exit(0);
+			}
+		}
 		else
 		{
 			cout << " Enemy tank too far .. bullet won't reach" << endl;
-			break;
+			//break;
 		}
 
 		duration = timer.stop();
