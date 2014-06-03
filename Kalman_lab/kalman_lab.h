@@ -27,8 +27,13 @@
 #include <iostream>
 #include <vector>
 #include "math.h"
-#include "vec2.h"
 #include <unistd.h>
+#include <armadillo>
+#include <chrono>
+#include <thread>
+
+#include"vec2.h"
+
 using namespace std;
 
 const int MAX_OBSTACLE_CORNERS = 10;
@@ -868,8 +873,8 @@ public:
 // Prototypes
 double normalize_angle(double angle);
 void dumb_agent(BZRC MyTeam);
-double get_distance(Vec2, Vec2);
-double get_angle(double x[2], double y[2]);
+//double get_distance(double x[2], double y[2]);
+//double get_angle(double x[2], double y[2]);
 void get_obstacle_center(obstacle_t obstacle, double center[2]);
 
 // agents
@@ -877,5 +882,11 @@ void conforming_agent(BZRC MyTeam);
 void non_conforming_agent(BZRC MyTeam);
 void dumb_agent(BZRC MyTeam);
 void kalman_agent(BZRC MyTeam);
+
+double get_angle(Vec2 a, Vec2 b);
+double normalize_angle(double angle);
+double get_distance(Vec2 a, Vec2 b);
+
+double When();
 
 #endif /* KALMAN_LAB_H_ */
