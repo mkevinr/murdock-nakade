@@ -81,20 +81,13 @@ public:
 	{
 		fprintf(p, "sigma_x = %i\n", sigma_x);
 		fprintf(p, "sigma_y = %i\n", sigma_y);
+		fprintf(p, "x_naught = %g\n", x);
+		fprintf(p, "y_naught = %g\n", y);
 		fprintf(p, "rho = %g\n", rho);
-		//fprintf(p, "show plot\n");
-		//float normal = 1.0/(2.0 * pi * sigma_x * sigma_y * sqrt(1 - rho*2) ) * exp(-1.0/2.0 * (x*x / sigma_x*sigma_x + y*y / sigma_y*sigma_y - 2.0*rho*x*y/(sigma_x*sigma_y) ) );
-		//string splot = "splot " + to_string(normal)  + " with pm3d\n";
-		//fprintf(p, "%s", splot.c_str());
-		/*double sigma_xy = sigma_x * sigma_y;
-		double first_part = 1.0/(2.0 * pi * sigma_x * sigma_y * sqrt(1 - rho * rho));
-		fprintf(p, "sigma_xy = %g\n", sigma_xy);
-		fprintf(p, "first_part = %g\n", first_part);*/
+
 		if(!plot_shown)
 		{
-			//fprintf(p, "splot first_part \\\n * exp(-1.0/2.0 * (x**2 / sigma_x**2 + y**2 / sigma_y**2 \\\n - 2.0*rho*x*y/(sigma_xy) ) ) with pm3d\n", first_part, sigma_xy);
-			//fprintf(p, "splot %g \\\n * exp(-1.0/2.0 * (x**2 / sigma_x**2 + y**2 / sigma_y**2 \\\n - 2.0*rho*x*y/(%g) ) ) with pm3d\n", first_part, sigma_xy);
-			fprintf(p, "splot 1.0/(2.0 * pi * sigma_x * sigma_y * sqrt(1 - rho**2) ) \\\n * exp(-1.0/2.0 * (x**2 / sigma_x**2 + y**2 / sigma_y**2 \\\n - 2.0*rho*x*y/(sigma_x*sigma_y) ) ) with pm3d\n");
+			fprintf(p, "splot 1.0/(2.0 * pi * sigma_x * sigma_y * sqrt(1 - rho**2) ) \\\n * exp(-1.0/2.0 * ((x - x_naught)**2 / sigma_x**2 + (y - y_naught)**2 / sigma_y**2 \\\n - 2.0*rho*(x - x_naught)*(y - y_naught)/(sigma_x*sigma_y) ) ) with pm3d\n");
 			if(file_name.length() == 0)
 			{
 				fprintf(p, "show plot\n");

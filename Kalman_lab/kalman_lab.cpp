@@ -269,14 +269,12 @@ void aim_at(BZRC& MyTeam, Vec2 pos)
 {
 	vector<tank_t> my_tanks;
 	double max_angular_velocity = 0.785398163397;
-	float attractive_angle = 1;
+	MyTeam.get_mytanks(&my_tanks);
+	tank_t my_tank = my_tanks[0];
+	float attractive_angle = normalize_angle(get_angle(Vec2(my_tank.pos[0], my_tank.pos[1]), pos) - my_tank.angle);;
 	if(attractive_angle > 0.05 || attractive_angle<-0.05)
 	{
-		my_tanks.clear();
-		MyTeam.get_mytanks(&my_tanks);
-		tank_t my_tank = my_tanks[0];
 		// The constants have 2 values, angular velocity and angular acceleration. I am assuming the angular velocity is the max angular velocity.
-		attractive_angle = normalize_angle(get_angle(Vec2(my_tank.pos[0], my_tank.pos[1]), pos) - my_tank.angle);
 		MyTeam.angvel(0, attractive_angle);
 		//MyTeam.angvel(0, attractive_angle * max_angular_velocity/ pi);
 	}
@@ -312,7 +310,7 @@ void kalman_agent(BZRC MyTeam)
 	print_constants(MyTeam);
 
 	Plotter * plotter;
-	bool plot = false;
+	bool plot = true;
 	if(plot)
 	{
 		// Uncomment this line and comment out the next to save the distribution as a gif.
@@ -336,8 +334,8 @@ void kalman_agent(BZRC MyTeam)
 		timer2.start();
 		if(plot)
 		{
-			plotter->plotMultivariateNormal(i / 100, i / 100, (float) 1000 / i, (float) 1000 / i, 0);
-			//plotter->plotMultivariateNormal(u(0,0), u(3,0), sigma_t(0,0), sigma_t(3,3), 0);
+			//plotter->plotMultivariateNormal(i / 100, i / 100, (float) 1000 / i, (float) 1000 / i, 0);
+			plotter->plotMultivariateNormal(u(0,0), u(3,0), sigma_t(0,0), sigma_t(3,3), 0);
 		}
 		duration2 = timer2.stop();
 		cout << "plotting duration: " << duration2 << endl;
