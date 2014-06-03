@@ -1,9 +1,12 @@
 #!/bin/bash
-RUN_SERVER=true
-RUN_CLIENT=true
+RUN_SERVER=true;
+RUN_CLIENT=true;
 STATIONARY=false;
 CONSTANT=false;
 WILD=false;
+
+POS_NOISE_COMMAND="--default-posnoise=5";
+NO_POS_NOISE = false;
 
 for var in "$@"
 do
@@ -22,15 +25,23 @@ do
 	elif [ "$var" = "wild" ] || [ "$var" = "-wild" ] || [ "$var" = "--wild" ]
 	then
 		WILD=true;
+	elif [ "$var" = "no_noise" ] || [ "$var" = "-no_noise" ] || [ "$var" = "--no_noise" ] || [ "$var" = "nonoise" ] || [ "$var" = "-nonoise" ] || [ "$var" = "--nonoise" ]
+	then
+		NO_POS_NOISE = false;
 	fi
 done
+
+if [ "$NO_POS_NOISE" = true ];
+then
+	POS_NOISE_COMMAND=""
+fi;
 
 SERVER_DIR=~/git/bzrflag-server
 KALMAN_DIR=~/git/bzrflag/Kalman_lab
 
 if [ "$RUN_SERVER" = true ];
 then
-	$SERVER_DIR/bin/bzrflag --world=$KALMAN_DIR/empty3.bzw  --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 --default-posnoise=5 &
+	$SERVER_DIR/bin/bzrflag --world=$KALMAN_DIR/empty4.bzw --world-size=400 --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 $POS_NOISE_COMMAND &
 fi;
 
 sleep 2
