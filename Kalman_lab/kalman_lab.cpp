@@ -18,7 +18,7 @@ const int kDefaultServerPort = 50100;
 
 fmat u, sigma_x(6,6), F(6,6), F_transpose, sigma_z(2,2), H(2,6),
 		H_transpose, K_t_plus_1, z(2,1), sigma_t(6,6), I(6,6), X, F_future(6,6), u_future;
-double t = 0.5;
+double t = 0.05;
 
 void update_F(float t);
 
@@ -64,7 +64,6 @@ int main(int argc, char *argv[])
 	}
 	else if(strcmp(argv[3], "wild") == 0)
 	{
-		cout << "call wild agent!" << endl;
 		non_conforming_agent(MyTeam);
 	}
 	else
@@ -81,7 +80,15 @@ int main(int argc, char *argv[])
 void conforming_agent(BZRC MyTeam)
 {
 	cout << "Starting conforming agent..." << endl;
-	MyTeam.speed(0, 1);
+	while(true)
+	{
+		MyTeam.speed(0, 1);
+		if(MyTeam.get_connection_closed())
+		{
+			exit(0);
+		}
+		sleep(2);
+	}
 
 }
 
@@ -106,10 +113,9 @@ void init_matrices()
 	u << 0 << endr
 	  << 0 << endr
 	  << 0 << endr
-	  << -170 << endr
+	  << -100 << endr
 	  << 0 << endr
 	  << 0 << endr;
-	//u.print("u:");
 
 	sigma_x.fill(0);
 	sigma_x(0,0) = .1;
@@ -118,7 +124,6 @@ void init_matrices()
 	sigma_x(3,3) = .1;
 	sigma_x(4,4) = .1;
 	sigma_x(5,5) = 20;
-	//sigma_x.print("sigma_x:");
 
 	F.fill(0);
 	F(0,0) = 1;
@@ -127,7 +132,7 @@ void init_matrices()
 	F(3,3) = 1;
 	F(4,4) = 1;
 	F(5,5) = 1;
-	//F.print("F:");
+	update_F(t);
 
 	F_future.fill(0);
 	F_future(0,0) = 1;
@@ -136,24 +141,18 @@ void init_matrices()
 	F_future(3,3) = 1;
 	F_future(4,4) = 1;
 	F_future(5,5) = 1;
-	update_F(t);
-	//F_future.print("F_future:");
 
 	sigma_z.fill(0);
 	sigma_z(0,0) = 25;
 	sigma_z(1,1) = 25;
-	//sigma_z.print("sigma_z:");
 
 	H.fill(0);
 	H(0,0) = 1;
 	H(1,3) = 1;
-	//H.print("H:");
 
 	H_transpose = trans(H);
-	//H_transpose.print("H_transpose");
 
 	F_transpose = trans(F);
-	//F_transpose.print("F_transpose");
 
 	z.fill(0);
 
@@ -180,14 +179,7 @@ void apply_kalman()
 	X = F * sigma_t * F_transpose + sigma_x;
 	// .i() takes the inverse. * does matrix multiplication
 	K_t_plus_1 = X * H_transpose * (H * X * H_transpose + sigma_z).i();
-	//K_t_plus_1.print("K_t_plus_1:");
-	//fmat test_matrix = H*F*u;
-	//H.print("H:");
-	//F.print("F:");
-	//u.print("u:");
-	//test_matrix.print("Matrix Test:");
 	u = F * u + K_t_plus_1 * (z - H * F * u);
-	//u.print("u:");
 	sigma_t = (I - K_t_plus_1 * H) * X;
 }
 
@@ -201,8 +193,6 @@ void update_F(float t)
 	F(3,5) = t_squared / 2;
 	F(4,5) = t;
 
-	//F.print("F:");
-
 	/*F =  1,     t, t*t/2,     0,     0,     0,
 	       0,     1,     t,     0,     0,     0,
 	       0,     0,     1,     0,     0,     0,
@@ -211,7 +201,6 @@ void update_F(float t)
 	       0,     0,     0,     0,     0,     1;*/
 
 	F_transpose = F.t();
-	//F_transpose.print("F_transpose");
 }
 
 void update_F_future(float t)
@@ -242,10 +231,10 @@ Vec2 predict_future(BZRC & MyTeam)
 	 // find the perfect t. It is just trying a lot of t values and choosing the best. The t values goes to the maximum
 	 // distance that a bullet can travel, which is 350 (or 3.5 t).
 	 //
-	for(float t = 0.05; t <= 3.5; t+=0.05)
+	for(float future_t = t; !(future_t > 3.5); future_t += t)
 	{
 		// F_future is based off of a different t each time, so it has to change.
-		update_F_future(t);
+		update_F_future(future_t);
 		u_future = F_future * u;
 		other_pos = Vec2(u_future(0,0), u_future(3,0));
 		dist = get_distance(my_pos, other_pos);
@@ -254,14 +243,15 @@ Vec2 predict_future(BZRC & MyTeam)
 		 // 1 / the 800 height or width that the world is set to.
 		 //
 		bullet_time = dist / 100;
-		diff = bullet_time - t;
-		if(diff < 1)
+		diff = bullet_time - future_t;
+		if(diff < 0)
 		{
 			diff = -diff;
 		}
+
 		if(diff < min_diff)
 		{
-			min_t = t;
+			min_t = future_t;
 			min_diff = diff;
 		}
 	}
@@ -271,22 +261,21 @@ Vec2 predict_future(BZRC & MyTeam)
 	return Vec2(u_future(0,0), u_future(3,0));
 }
 
-void aim_at(BZRC& MyTeam, Vec2 pos)
+void aim_at(BZRC& MyTeam, Vec2 pos, float distance)
 {
 	vector<tank_t> my_tanks;
-	double max_angular_velocity = 0.785398163397;
+	//double max_angular_velocity = 0.785398163397;
 	MyTeam.get_mytanks(&my_tanks);
 	tank_t my_tank = my_tanks[0];
-	float attractive_angle = normalize_angle(get_angle(Vec2(my_tank.pos[0], my_tank.pos[1]), pos) - my_tank.angle);;
-	if(attractive_angle > 0.05 || attractive_angle<-0.05)
-	{
-		MyTeam.angvel(0, 2 * attractive_angle);
-		//MyTeam.angvel(0, attractive_angle * max_angular_velocity/ pi);
-	}
-	else
-	{
-		MyTeam.angvel(0, 0);
-	}
+	float attractive_angle = normalize_angle(get_angle(Vec2(my_tank.pos[0], my_tank.pos[1]), pos) - my_tank.angle);
+	//if(attractive_angle > 0.05 || attractive_angle<-0.05)
+	//{
+		MyTeam.angvel(0, 400/distance * attractive_angle);
+	//}
+	//else
+	//{
+	//	MyTeam.angvel(0, 0);
+	//}
 }
 
 void print_constants(BZRC& MyTeam)
@@ -304,11 +293,10 @@ void print_constants(BZRC& MyTeam)
 void kalman_agent(BZRC MyTeam)
 {
 	cout << "Starting Kalman agent..." << endl;
-	//init_matrices();
+
 	Timer timer;
 	Timer timer2;
 	double duration;
-	double duration2;
 	vector<otank_t> other_tanks;
 	bool new_tank = true;
 
@@ -324,66 +312,51 @@ void kalman_agent(BZRC MyTeam)
 	}
 
 	Vec2 target;
+	float target_angle;
 	for(int i = 0; true; i++)
 	{
+		timer.start();
 		other_tanks.clear();
 		MyTeam.get_othertanks(&other_tanks);
-		if(other_tanks.size() == 0)
+		if(strcmp(other_tanks[0].status.c_str(), "dead") == 0)
 		{
+			MyTeam.angvel(0, 0);
 			new_tank = true;
+			duration = timer.stop();
+		    chrono::microseconds sleep_time((int)(1000000 * (t - duration)));
+		    this_thread::sleep_for(sleep_time);
+		    sleep(t - duration);
+		    continue;
 		}
 		if(new_tank)
 		{
 			init_matrices();
 		}
-		timer.start();
 		z(0,0) = other_tanks[0].pos[0];
 		z(1,0) = other_tanks[0].pos[1];
 
-		timer2.start();
 		apply_kalman();
-		duration2 = timer2.stop();
-		//cout << "\n\napply_kalman duration: " << duration2 << endl;
-		timer2.start();
 		if(plot && i % 10 == 0)
 		{
-			//plotter->plotMultivariateNormal(i / 100, i / 100, (float) 1000 / i, (float) 1000 / i, 0);
 			plotter->plotMultivariateNormal(u(0,0), u(3,0), sigma_t(0,0), sigma_t(3,3), 0);
 		}
-		duration2 = timer2.stop();
-		//cout << "plotting duration: " << duration2 << endl;
 
 		Vec2 current_pos = Vec2(u(0,0), u(3,0));
-		cout << "current x: " << current_pos.x << " y: " << current_pos.y << endl;
+		vector<otank_t> other_tanks;
 		// Get the point we want to aim at giving enough time for the bullet to travel there.
-		timer2.start();
 		target = predict_future(MyTeam);
-		duration2 = timer2.stop();
-		//cout << "predict_future duration: " << duration2 << endl;
-		cout << "target: x: " << target.x << " y: " << target.y << endl;
-		// Aim at the given point. predict_future assumes that our tank can turn faster than the enemy tank can move
-		// away from us.
 
 		vector<tank_t> my_tanks;
 		MyTeam.get_mytanks(&my_tanks);
 		Vec2 my_pos(my_tanks[0].pos[0], my_tanks[0].pos[1]);
 
-		float dist = get_distance(my_pos, target);
-		timer2.start();
-		aim_at(MyTeam, target);
-		if(MyTeam.get_connection_closed())
-		{
-			if(plot)
-			{
-				plotter->end();
-			}
-			cout << "Exiting..." << endl;
-			exit(0);
-		}
-		duration2 = timer2.stop();
-		//cout << "aim_at duration: " << duration2 << endl;
+		target_angle = normalize_angle(get_angle(my_pos, target));
+		float normalized_tank_angle = normalize_angle(my_tanks[0].angle);
+		float angle_diff = normalized_tank_angle - target_angle;
 
-		if(dist < 400)
+		float dist = get_distance(my_pos, target);
+
+		if(angle_diff < .1 && angle_diff > -.1 && dist < 400)
 		{
 			MyTeam.shoot(0);
 			if(MyTeam.get_connection_closed())
@@ -396,23 +369,30 @@ void kalman_agent(BZRC MyTeam)
 				exit(0);
 			}
 		}
-		else
+
+		timer2.start();
+		aim_at(MyTeam, target, dist);
+		if(MyTeam.get_connection_closed())
 		{
-			cout << " Enemy tank too far .. bullet won't reach" << endl;
-			//break;
+			if(plot)
+			{
+				plotter->end();
+			}
+			cout << "Exiting..." << endl;
+			exit(0);
 		}
 
 		duration = timer.stop();
-		//cout << "duration: " << duration << endl;
+		cout << "duration: " << duration << endl;
 		if(t > duration)
 		{
 			// From http://en.cppreference.com/w/cpp/thread/sleep_for
-		    chrono::microseconds sleep_time((int)(t - duration));
+		    chrono::microseconds sleep_time((int)(1000000 * (t - duration)));
 		    this_thread::sleep_for(sleep_time);
 		}
 		else
 		{
-			cout << "Error: loop running slower than t = " << 5 << endl;
+			cout << "\n\nError: loop running slower than t = " << t << "\n\n" << endl;
 			cout << "duration: " << duration << endl;
 		}
 		new_tank = false;

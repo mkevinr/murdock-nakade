@@ -6,7 +6,9 @@ CONSTANT=false;
 WILD=false;
 
 POS_NOISE_COMMAND="--default-posnoise=5";
-NO_POS_NOISE = false;
+POS_NOISE_COMMAND="";
+NO_POS_NOISE=false;
+CONTROL_ENEMY=true;
 
 for var in "$@"
 do
@@ -27,7 +29,10 @@ do
 		WILD=true;
 	elif [ "$var" = "no_noise" ] || [ "$var" = "-no_noise" ] || [ "$var" = "--no_noise" ] || [ "$var" = "nonoise" ] || [ "$var" = "-nonoise" ] || [ "$var" = "--nonoise" ]
 	then
-		NO_POS_NOISE = false;
+		NO_POS_NOISE=false;
+	elif [ "$var" = "no_enemy" ] || [ "$var" = "-no_enemy" ] || [ "$var" = "--no_enemy" ] || [ "$var" = "noenemy" ] || [ "$var" = "-noenemy" ] || [ "$var" = "--noenemy" ]
+	then
+		CONTROL_ENEMY=false;
 	fi
 done
 
@@ -41,7 +46,7 @@ KALMAN_DIR=~/git/bzrflag/Kalman_lab
 
 if [ "$RUN_SERVER" = true ];
 then
-	$SERVER_DIR/bin/bzrflag --world=$KALMAN_DIR/empty4.bzw --world-size=400 --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 $POS_NOISE_COMMAND &
+	$SERVER_DIR/bin/bzrflag --world=$KALMAN_DIR/empty4.bzw --world-size=370 --red-port=50100 --green-port=50101 --purple-port=50102 --blue-port=50103 --red-tanks=1 --green-tanks=1 $POS_NOISE_COMMAND &
 fi;
 
 sleep 2
@@ -50,14 +55,21 @@ if [ "$RUN_CLIENT" = true ];
 then
 	if [ "$STATIONARY" = true ]
 	then
-		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman;
 	elif [ "$CONSTANT" = true ]
 	then
-		$KALMAN_DIR/Debug/Kalman_lab localhost 50101 constant &
-		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman
+		if [ "$CONTROL_ENEMY" = true ];
+		then
+			$KALMAN_DIR/Debug/Kalman_lab localhost 50101 constant &
+		fi
+		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman;
+
 	elif [ "$WILD" = true ]
 	then
-		$KALMAN_DIR/Debug/Kalman_lab localhost 50101 wild &
+		if [ "$CONTROL_ENEMY" = true ];
+		then
+			$KALMAN_DIR/Debug/Kalman_lab localhost 50101 wild &
+		fi
 		$KALMAN_DIR/Debug/Kalman_lab localhost 50100 kalman
 	fi		
 fi
